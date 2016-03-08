@@ -41,8 +41,15 @@ function statsd.dissector(tvbuf,pktinfo,root)
           pos = pos + body:len()
         end
         if marker == "#" then
-          tree:add(pf_dogstatsd_tag, tvbuf:range(pos, body:len()), body)
-          pos = pos + body:len()
+          local tags_tree = tree:add("Dogstatsd Tags")
+          repeat
+            local e, f, tag = string.find(body, "^([^,]+),?")
+            if e then
+              tags_tree:add(pf_dogstatsd_tag, tvbuf:range(pos, tag:len()), tag)
+              pos = pos + f
+              body = string.sub(body, f + 1, -1)
+            end
+          until e == nil
         end
         extra = string.sub(extra, d + 1, -1)
       end
