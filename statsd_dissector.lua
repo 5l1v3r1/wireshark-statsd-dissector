@@ -3,8 +3,9 @@ local statsd = Proto("statsd","Statsd Protocol")
 local pf_metric_name = ProtoField.new("Metric Name", "statsd.metric_name", ftypes.STRING)
 local pf_value = ProtoField.new("Value", "statsd.value", ftypes.STRING)
 local pf_metric_type = ProtoField.new("Metric Type", "statsd.metric_type", ftypes.STRING)
+local pf_sample_rate = ProtoField.new("Sample Rate", "statsd.sample_rate", ftypes.STRING)
 
-statsd.fields = { pf_metric_name, pf_value, pf_metric_type }
+statsd.fields = { pf_metric_name, pf_value, pf_metric_type, pf_sample_rate }
 
 function statsd.dissector(tvbuf,pktinfo,root)
   local pktlen = tvbuf:reported_length_remaining()
@@ -12,7 +13,7 @@ function statsd.dissector(tvbuf,pktinfo,root)
 
   -- <metric name>:<value>|<metric type>[|@<sample rate>]
   local payload = tvbr:string()
-  local a, b, metric_name, value, metric_type = string.find(payload, "^([^:]+):([^|]+)|([^|]+)")
+  local a, b, metric_name, value, metric_type, extra = string.find(payload, "^([^:]+):([^|]+)|([^|]+)(.*)")
 
   if a then
     pktinfo.cols.protocol:set("Statsd")
@@ -29,6 +30,18 @@ function statsd.dissector(tvbuf,pktinfo,root)
 
     tree:add(pf_metric_type, tvbuf:range(pos, metric_type:len()), metric_type)
     pos = pos + metric_type:len()
+
+    repeat
+      local c, d, marker, body = string.find(extra, "^|(.)([^|]+)")
+      if c then
+        pos = pos + 2
+        if marker == "@" then
+          tree:add(pf_sample_rate, tvbuf:range(pos, body:len()), body)
+          pos = pos + body:len()
+        end
+        extra = string.sub(extra, d + 1, -1)
+      end
+    until c == nil
   end
 end
 
