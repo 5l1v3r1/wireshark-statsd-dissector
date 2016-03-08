@@ -4,8 +4,9 @@ local pf_metric_name = ProtoField.new("Metric Name", "statsd.metric_name", ftype
 local pf_value = ProtoField.new("Value", "statsd.value", ftypes.STRING)
 local pf_metric_type = ProtoField.new("Metric Type", "statsd.metric_type", ftypes.STRING)
 local pf_sample_rate = ProtoField.new("Sample Rate", "statsd.sample_rate", ftypes.STRING)
+local pf_dogstatsd_tag = ProtoField.new("Tag", "statsd.dogstatsd.tag", ftypes.STRING)
 
-statsd.fields = { pf_metric_name, pf_value, pf_metric_type, pf_sample_rate }
+statsd.fields = { pf_metric_name, pf_value, pf_metric_type, pf_sample_rate, pf_dogstatsd_tag }
 
 function statsd.dissector(tvbuf,pktinfo,root)
   local pktlen = tvbuf:reported_length_remaining()
@@ -37,6 +38,10 @@ function statsd.dissector(tvbuf,pktinfo,root)
         pos = pos + 2
         if marker == "@" then
           tree:add(pf_sample_rate, tvbuf:range(pos, body:len()), body)
+          pos = pos + body:len()
+        end
+        if marker == "#" then
+          tree:add(pf_dogstatsd_tag, tvbuf:range(pos, body:len()), body)
           pos = pos + body:len()
         end
         extra = string.sub(extra, d + 1, -1)
